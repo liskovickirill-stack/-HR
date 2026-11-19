@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#2f2d2c" />
+    <meta name="description" content="Дашборд текучести сотрудников по отделам Smartway." />
+    <title>Текучесть по отделам — Smartway</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <div id="login-screen" class="login-screen" role="dialog" aria-modal="true" aria-labelledby="login-title">
+      <form id="login-form" class="login-card">
+        <span class="login-brand">Smartway</span>
+        <h1 id="login-title">Вход в дашборд</h1>
+        <p class="login-description">Введите пароль, чтобы продолжить.</p>
+        <label for="login-password">Пароль</label>
+        <input id="login-password" name="password" type="password" autocomplete="current-password" required autofocus />
+        <button id="login-submit" type="submit">Войти</button>
+        <p id="login-message" class="login-message" role="alert" hidden></p>
+      </form>
+    </div>
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="Smartway — главная">
+        <span class="brand-name">Smartway</span>
+        <span class="brand-divider" aria-hidden="true"></span>
+        <span class="brand-section">PEOPLE ANALYTICS</span>
+      </a>
+      <div class="topbar-right">
+        <span class="live-dot" aria-hidden="true"></span>
+        <span id="sync-label" class="sync-label">Загружаем данные…</span>
+        <button class="icon-button" id="refresh-button" type="button" aria-label="Обновить данные" title="Обновить данные">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M5.6 9a7 7 0 0 1 11.8-2L20 12M4 12l2.6 5a7 7 0 0 0 11.8-2" /></svg>
+        </button>
+      </div>
+    </header>
+
+    <main id="top" class="page-shell">
+      <section class="page-heading" aria-labelledby="page-title">
+        <div>
+          <div class="eyebrow"><span class="eyebrow-mark"></span> АНАЛИТИКА КОМАНДЫ</div>
+          <h1 id="page-title">Текучесть по отделам</h1>
+          <p class="page-description">Увольнения по месяцам и годовой показатель текучести</p>
+        </div>
+        <label class="year-control" for="year-select">
+          <span class="control-caption">ПЕРИОД</span>
+          <span class="select-wrap">
+            <select id="year-select" aria-label="Выберите год"></select>
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 7.5 5 5 5-5" /></svg>
+          </span>
+        </label>
+      </section>
+
+      <section class="summary-strip" aria-label="Сводка">
+        <div class="summary-item">
+          <span class="summary-icon icon-people" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 20v-1.5a4.5 4.5 0 0 0-4.5-4.5h-4A4.5 4.5 0 0 0 3 18.5V20M9.5 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM16 3.2a3.5 3.5 0 0 1 0 6.8M17 14h.5a3.5 3.5 0 0 1 3.5 3.5V20" /></svg></span>
+          <span class="summary-copy"><span class="summary-label">ОТДЕЛОВ В ФОКУСЕ</span><strong id="team-count">5</strong></span>
+        </div>
+        <span class="summary-divider" aria-hidden="true"></span>
+        <div class="summary-item">
+          <span class="summary-icon icon-exit" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5M15 12H3M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6" /></svg></span>
+          <span class="summary-copy"><span class="summary-label">УВОЛЬНЕНИЙ ЗА ГОД</span><strong id="total-exits">—</strong></span>
+        </div>
+        <span class="summary-divider summary-divider-last" aria-hidden="true"></span>
+        <div class="summary-note"><span class="note-dot"></span><span>Показатели обновляются из Google Таблиц</span></div>
+      </section>
+
+      <section id="department-overview" class="department-section" aria-labelledby="departments-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="departments-title">Отделы</h2>
+            <span class="section-subtitle" id="period-caption">Показатели за 2026 год</span>
+          </div>
+          <div class="legend"><span class="legend-dot"></span> Текучесть за год <span class="legend-separator">·</span> увольнения по месяцу</div>
+        </div>
+        <div id="department-grid" class="department-grid" aria-live="polite">
+          <div class="loading-card"><span class="loading-shimmer"></span><span class="loading-shimmer short"></span><span class="loading-shimmer"></span></div>
+          <div class="loading-card"><span class="loading-shimmer"></span><span class="loading-shimmer short"></span><span class="loading-shimmer"></span></div>
+          <div class="loading-card"><span class="loading-shimmer"></span><span class="loading-shimmer short"></span><span class="loading-shimmer"></span></div>
+        </div>
+      </section>
+      <section id="department-detail" class="detail-view" aria-labelledby="detail-title" hidden>
+        <button id="back-to-departments" class="back-button" type="button">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12.5 4-6 6 6 6M7 10h10" /></svg>
+          Все отделы
+        </button>
+        <div class="detail-heading">
+          <div class="detail-title-copy">
+            <div class="eyebrow"><span class="eyebrow-mark"></span> ДЕТАЛИ ОТДЕЛА</div>
+            <h2 id="detail-title"></h2>
+            <p id="detail-location" class="detail-location"></p>
+          </div>
+          <div id="detail-rate-card" class="detail-rate-card"></div>
+        </div>
+        <div class="detail-tabs" role="tablist" aria-label="Разделы отдела">
+          <button id="groups-tab" class="detail-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="detail-panel" data-detail-tab="groups">По группам</button>
+          <button id="charts-tab" class="detail-tab" type="button" role="tab" aria-selected="false" aria-controls="detail-panel" data-detail-tab="charts">Графики</button>
+        </div>
+        <div id="detail-panel" class="detail-panel" role="tabpanel" aria-labelledby="groups-tab"></div>
+      </section>
+      <footer class="page-footer">
+        <span><span class="footer-mark">S</span> Smartway <span class="footer-separator">/</span> People analytics</span>
+        <span class="source-links">Источники: <a href="https://docs.google.com/spreadsheets/d/10rIIALkEF2CS4D4QbprXzQyXbOdwywFiw1-ifKVTg5Y/edit?gid=0#gid=0" target="_blank" rel="noopener noreferrer">увольнения</a><span aria-hidden="true">·</span><a href="https://docs.google.com/spreadsheets/d/18ByGRXv1Cins4U0eEbC0lvViJ5TlH0epCU_lcAHb55c/edit?gid=0#gid=0" target="_blank" rel="noopener noreferrer">текучесть</a></span>
+      </footer>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
