@@ -324,20 +324,15 @@ function renderTeam(team, index, year) {
       <tr><td>${month}</td><td><span class="month-count">${count}</span></td></tr>`)
     .join('');
   const missingRate = rate === null;
-  const rateHint = missingRate
-    ? (team.missingMetricNote ?? `Показатель не найден в строке ${year} этой таблицы`)
-    : '<span class="rate-pill is-normal">значение из столбца P</span>';
   return `
     <article class="department-card" role="button" tabindex="0" data-team-index="${index}" aria-label="Открыть детали отдела: ${escapeHtml(team.name)}">
       <div class="card-topline"><h3 class="card-name">${team.name}</h3><span class="card-index">${String(index + 1).padStart(2, '0')}</span></div>
-      ${team.cityLabel ? `<span class="card-city-label">г. ${team.cityLabel}</span>` : ''}
       <span class="turnover-label">ТЕКУЧЕСТЬ ОТДЕЛА</span>
       <div class="turnover-line"><span class="turnover-value${missingRate ? ' is-missing' : ''}">${formatRate(rate)}</span>${missingRate ? '' : '<span class="turnover-unit">за год</span>'}</div>
-      <div class="rate-hint">${rateHint}</div>
       <div class="card-rule"></div>
       <div class="exits-heading"><span class="exits-label">Увольнения по месяцам</span><span class="exits-total">${hasMatchingDepartment ? `${total} чел.` : 'нет данных'}</span></div>
       ${rows ? `<table class="month-table" aria-label="Увольнения ${escapeHtml(team.name)} за ${year}"><tbody>${rows}</tbody></table>` : `<div class="empty-months">${hasMatchingDepartment ? `Нет увольнений за ${year} год` : state.exits ? 'Название отдела не найдено в таблице увольнений' : 'Нет данных из таблицы увольнений'}</div>`}
-      <div class="card-footer"><span>${hasMatchingDepartment ? `Всего за ${year} год` : 'Проверьте источник данных'}</span><span class="card-open-hint">Открыть разрез ↗</span></div>
+      <div class="card-footer"><span>${hasMatchingDepartment ? `Всего за ${year} год` : 'Проверьте источник данных'}</span></div>
     </article>`;
 }
 
