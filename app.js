@@ -70,6 +70,7 @@ const elements = {
 let state = { exits: null, metrics: null, year: new Date().getFullYear() };
 let selectedTeamIndex = null;
 let activeDetailTab = 'groups';
+let groupFilters = { month: 'all', reason: 'all', tenure: 'all' };
 let toastTimer;
 
 function parseCSV(text) {
@@ -370,41 +371,76 @@ function groupExitRecords(records) {
     .sort((left, right) => right.exits.length - left.exits.length || left.manager.localeCompare(right.manager, 'ru'));
 }
 
+function hasActiveGroupFilters() {
+  return Object.values(groupFilters).some((value) => value !== 'all');
+}
+
+function filterGroupExits(records) {
+  return records.filter((exit) => (
+    (groupFilters.month === 'all' || exit.date.getMonth() === Number(groupFilters.month))
+    && (groupFilters.reason === 'all' || exit.reason === groupFilters.reason)
+    && (groupFilters.tenure === 'all' || tenureBand(exit.tenure) === groupFilters.tenure)
+  ));
+}
+
+function renderGroupFilters(records, matchingExits) {
+  const months = [...new Set(records.map((exit) => exit.date.getMonth()))].sort((left, right) => left - right);
+  const reasons = [...new Set(records.map((exit) => exit.reason))].sort((left, right) => left.localeCompare(right, 'ru'));
+  const tenureBands = TENURE_BANDS.filter((band) => records.some((exit) => tenureBand(exit.tenure) === band));
+  const active = hasActiveGroupFilters();
+  const monthOptions = months
+    .map((month) => `<option value="${month}"${groupFilters.month === String(month) ? ' selected' : ''}>${MONTHS[month]}</option>`)
+    .join('');
+  const reasonOptions = reasons
+    .map((reason) => `<option value="${escapeHtml(reason)}"${groupFilters.reason === reason ? ' selected' : ''}>${escapeHtml(reason)}</option>`)
+    .join('');
+  const tenureOptions = tenureBands
+    .map((band) => `<option value="${escapeHtml(band)}"${groupFilters.tenure === band ? ' selected' : ''}>${escapeHtml(band)}</option>`)
+    .join('');
+
+  return `
+    <div class="rg-filters" aria-label="Фильтры увольнений">
+      <label class="rg-filter-field"><span>Месяц увольнения</span><select data-rg-filter="month"><option value="all"${groupFilters.month === 'all' ? ' selected' : ''}>Все месяцы</option>${monthOptions}</select></label>
+      <label class="rg-filter-field"><span>Причина увольнения</span><select data-rg-filter="reason"><option value="all"${groupFilters.reason === 'all' ? ' selected' : ''}>Все причины</option>${reasonOptions}</select></label>
+      <label class="rg-filter-field"><span>Стаж</span><select data-rg-filter="tenure"><option value="all"${groupFilters.tenure === 'all' ? ' selected' : ''}>Любой стаж</option>${tenureOptions}</select></label>
+      <button class="rg-filter-reset" type="button" data-reset-rg-filters${active ? '' : ' disabled'}>Сбросить</button>
+    </div>
+    <p class="rg-filter-summary">Показано <b>${matchingExits.length}</b> из ${records.length} увольнений${active ? ' по выбранным фильтрам' : ''}</p>`;
+}
+
 function renderGroupDetails(group) {
   const months = Array.from({ length: 12 }, () => []);
   for (const exit of group.exits) months[exit.date.getMonth()].push(exit);
   const rows = months.map((exits, month) => {
     if (!exits.length) return '';
-    const tenureCounts = new Map();
-    const reasonCounts = new Map();
-    for (const exit of exits) {
-      const band = tenureBand(exit.tenure);
-      tenureCounts.set(band, (tenureCounts.get(band) ?? 0) + 1);
-      reasonCounts.set(exit.reason, (reasonCounts.get(exit.reason) ?? 0) + 1);
-    }
-    const tenure = TENURE_BANDS.filter((band) => tenureCounts.has(band))
-      .map((band) => `<span class="tenure-chip">${band} <b>${tenureCounts.get(band)}</b></span>`)
-      .join('');
-    const reasons = [...reasonCounts.entries()]
-      .map(([reason, count]) => `<span class="reason-chip">${escapeHtml(reason)} <b>${count}</b></span>`)
-      .join('');
-    return `<tr><td>${MONTHS[month]}</td><td>${exits.length}</td><td><div class="tenure-chip-list">${tenure}</div></td><td><div class="reason-chip-list">${reasons}</div></td></tr>`;
+    const details = exits.length === 1
+      ? `<div class="month-exit-pair"><span class="tenure-chip">${escapeHtml(tenureBand(exits[0].tenure))}</span><span class="reason-chip">${escapeHtml(exits[0].reason)}</span></div>`
+      : `<details class="month-exit-details">
+          <summary>Раскрыть список увольнений</summary>
+          <table class="month-exit-list">
+            <thead><tr><th>№</th><th>Стаж</th><th>Причина</th></tr></thead>
+            <tbody>${exits.map((exit, index) => `<tr><td>${index + 1}</td><td><span class="tenure-chip">${escapeHtml(tenureBand(exit.tenure))}</span></td><td><span class="reason-chip">${escapeHtml(exit.reason)}</span></td></tr>`).join('')}</tbody>
+          </table>
+        </details>`;
+    return `<tr><td>${MONTHS[month]}</td><td>${exits.length}</td><td>${details}</td></tr>`;
   }).join('');
 
   return `
-    <div class="rg-detail-note">Разрез стажа: до 3 месяцев; от 3 до 6; от 6 до 12 месяцев; от 1 до 2 лет; более 2 лет.</div>
+    <div class="rg-detail-note">В месяцах с несколькими увольнениями раскройте список: в каждой строке стаж и причина указаны для одного и того же сотрудника.</div>
     <div class="group-table-wrap">
       <table class="group-exits-table">
-        <thead><tr><th>Месяц увольнения</th><th>Кол-во</th><th>Стаж по диапазонам</th><th>Причина</th></tr></thead>
+        <thead><tr><th>Месяц увольнения</th><th>Кол-во</th><th>Детали увольнения</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
 }
 
 function renderGroupsTab(team, year) {
-  const exits = teamExitRecords(team, year);
+  const allExits = teamExitRecords(team, year);
+  const exits = filterGroupExits(allExits);
   const groups = groupExitRecords(exits);
   const rate = teamRate(team, year);
+  const filtersActive = hasActiveGroupFilters();
   const groupMarkup = groups.length
     ? groups.map((group, index) => {
       const groupRate = exits.length ? group.exits.length / exits.length * 100 : null;
@@ -417,17 +453,18 @@ function renderGroupsTab(team, year) {
         ${renderGroupDetails(group)}
       </details>`;
     }).join('')
-    : `<div class="detail-empty">За ${year} год по отделу не найдено увольнений${state.exits ? '.' : ' — таблица увольнений недоступна.'}</div>`;
+    : `<div class="detail-empty">${allExits.length && filtersActive ? 'По выбранным фильтрам увольнений не найдено. Измените фильтры или нажмите «Сбросить».' : `За ${year} год по отделу не найдено увольнений${state.exits ? '.' : ' — таблица увольнений недоступна.'}`}</div>`;
 
   return `
     <div class="detail-stats">
       <div class="detail-stat"><span>ТЕКУЧЕСТЬ ОТДЕЛА</span><strong>${formatRate(rate)}</strong><small>значение из таблицы показателей</small></div>
-      <div class="detail-stat"><span>УВОЛЬНЕНИЯ ЗА ${year} ГОД</span><strong>${exits.length}</strong><small>по выбранному городу и отделу</small></div>
-      <div class="detail-stat"><span>ГРУППЫ РУКОВОДИТЕЛЕЙ</span><strong>${groups.length}</strong><small>с увольнениями за период</small></div>
+      <div class="detail-stat"><span>${filtersActive ? 'УВОЛЬНЕНИЯ ПО ФИЛЬТРУ' : `УВОЛЬНЕНИЯ ЗА ${year} ГОД`}</span><strong>${exits.length}</strong><small>${filtersActive ? `из ${allExits.length} по отделу за год` : 'по выбранному городу и отделу'}</small></div>
+      <div class="detail-stat"><span>ГРУППЫ РУКОВОДИТЕЛЕЙ</span><strong>${groups.length}</strong><small>${filtersActive ? 'с совпадениями в выборке' : 'с увольнениями за период'}</small></div>
     </div>
-    <div class="detail-section-heading"><div><h3>Разрез по РГ</h3><p>РГ берётся из столбца J; строки свернуты по месяцу, стажу и причине увольнения.</p></div></div>
+    ${renderGroupFilters(allExits, exits)}
+    <div class="detail-section-heading"><div><h3>Разрез по РГ</h3><p>Фильтры можно сочетать. РГ берётся из столбца J; таблица показывает выбранные месяц, стаж и причину увольнения.</p></div></div>
     <div class="group-list">${groupMarkup}</div>
-    <p class="data-limitation">Текучесть РГ показана как доля увольнений этой группы от всех увольнений отдела за выбранный год. Отображаются РГ, встречающиеся в увольнениях за период.</p>`;
+    <p class="data-limitation">Процент РГ — доля увольнений группы среди всех увольнений отдела, попавших в текущую выборку. Без фильтров учитываются все увольнения отдела за выбранный год.</p>`;
 }
 
 function renderReasonChart(team, year) {
@@ -507,6 +544,7 @@ function openDepartment(index) {
   if (!TEAMS[index]) return;
   selectedTeamIndex = index;
   activeDetailTab = 'groups';
+  groupFilters = { month: 'all', reason: 'all', tenure: 'all' };
   elements.overview.hidden = true;
   elements.detail.hidden = false;
   renderDetail();
@@ -579,6 +617,7 @@ async function loadData({ quiet = false, forceRefresh = false } = {}) {
 
 elements.yearSelect.addEventListener('change', (event) => {
   state.year = Number(event.target.value);
+  groupFilters = { month: 'all', reason: 'all', tenure: 'all' };
   render();
 });
 elements.grid.addEventListener('click', (event) => {
@@ -593,6 +632,17 @@ elements.grid.addEventListener('keydown', (event) => {
   }
 });
 elements.backButton.addEventListener('click', closeDepartment);
+elements.detailPanel.addEventListener('change', (event) => {
+  const filterName = event.target.dataset.rgFilter;
+  if (!filterName) return;
+  groupFilters = { ...groupFilters, [filterName]: event.target.value };
+  renderDetail();
+});
+elements.detailPanel.addEventListener('click', (event) => {
+  if (!event.target.closest('[data-reset-rg-filters]')) return;
+  groupFilters = { month: 'all', reason: 'all', tenure: 'all' };
+  renderDetail();
+});
 elements.groupsTab.addEventListener('click', () => setDetailTab('groups'));
 elements.chartsTab.addEventListener('click', () => setDetailTab('charts'));
 elements.refreshButton.addEventListener('click', () => loadData({ forceRefresh: true }));
